@@ -109,7 +109,7 @@ def stripe_webhook():
 
     event_type = event['type']
 
-    if event_type == 'invoice.paid':
+if event_type == 'invoice.paid':
     invoice = event['data']['object']
     email = invoice.get('customer_email')
     stripe_invoice_id = invoice['id']
@@ -118,10 +118,11 @@ def stripe_webhook():
     print(f"[invoice.paid] Received Stripe invoice: {stripe_invoice_id}")
     print(f"Customer email from Stripe: {email}")
 
-if not email and 'customer' in invoice:
-    customer_data = stripe.Customer.retrieve(invoice['customer'])
-    email = customer_data.get('email')
-    print(f"Retrieved email from customer ID: {email}")
+    if not email and 'customer' in invoice:
+        customer_id = invoice['customer']
+        customer_data = stripe.Customer.retrieve(customer_id)
+        email = customer_data.get('email')
+        print(f"Retrieved email from customer ID: {email}")
 
     if email:
         erp_customer = get_or_create_erp_customer(email)
