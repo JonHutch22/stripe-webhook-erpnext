@@ -108,14 +108,15 @@ def stripe_webhook():
         return jsonify({"error": str(e)}), 400
 
     event_type = event['type']
+    print(f"🔔 Received Stripe event: {event_type}")
 
     if event_type == 'invoice.paid':
+        print("🧪 Stripe webhook: invoice.paid received")
         invoice = event['data']['object']
         email = invoice.get('customer_email')
         stripe_invoice_id = invoice['id']
         amount_paid = invoice['amount_paid'] / 100
 
-        print(f"[invoice.paid] Received Stripe invoice: {stripe_invoice_id}")
         print(f"Customer email from Stripe: {email}")
 
         if not email and 'customer' in invoice:
@@ -127,7 +128,8 @@ def stripe_webhook():
         if email:
             erp_customer = get_or_create_erp_customer(email)
             print(f"ERPNext customer created or found: {erp_customer}")
-            create_erp_invoice(erp_customer, amount_paid, stripe_invoice_id)
+            res = create_erp_invoice(erp_customer, amount_paid, stripe_invoice_id)
+            print("Invoice creation response:", res.text)
         else:
             print("[invoice.paid] No email found — skipping ERPNext sync.")
 
@@ -154,13 +156,15 @@ def stripe_webhook():
 
         if email:
             erp_customer = get_or_create_erp_customer(email)
-            create_erp_subscription(erp_customer, stripe_sub_id, status)
+            res = create_erp_subscription(erp_customer, stripe_sub_id, status)
+            print("Subscription creation response:", res.text)
 
     elif event_type == 'customer.subscription.deleted':
         subscription = event['data']['object']
         stripe_sub_id = subscription['id']
         print(f"[subscription.deleted] Stripe subscription ID: {stripe_sub_id}")
-        cancel_erp_subscription(stripe_sub_id)
+        res = cancel_erp_subscription(stripe_sub_id)
+        print("Subscription cancel response:", res.text)
 
     elif event_type == 'invoice.payment_failed':
         invoice = event['data']['object']
