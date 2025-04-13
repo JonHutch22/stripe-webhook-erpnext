@@ -79,7 +79,6 @@ def create_erp_subscription(customer_name, stripe_sub_id, status):
     )
 
 def cancel_erp_subscription(stripe_sub_id):
-    # Look up ERPNext Subscription by Stripe subscription ID and mark it canceled
     res = requests.get(
         f"{ERP_BASE_URL}/api/resource/Subscription?filters=[[\"Subscription\",\"stripe_subscription_id\",\"=\",\"{stripe_sub_id}\"]]",
         headers=erp_headers
@@ -105,54 +104,53 @@ def stripe_webhook():
             payload, sig_header, stripe_webhook_secret
         )
     except Exception as e:
+        print(f"Webhook error: {e}")
         return jsonify({"error": str(e)}), 400
 
     event_type = event['type']
 
-if event_type == 'invoice.paid':
-    invoice = event['data']['object']
-    email = invoice.get('customer_email')
-    stripe_invoice_id = invoice['id']
-    amount_paid = invoice['amount_paid'] / 100
+    if event_type == 'invoice.paid':
+        invoice = event['data']['object']
+        email = invoice.get('customer_email')
+        stripe_invoice_id = invoice['id']
+        amount_paid = invoice['amount_paid'] / 100
 
-    print(f"[invoice.paid] Received Stripe invoice: {stripe_invoice_id}")
-    print(f"Customer email from Stripe: {email}")
+        print(f"[invoice.paid] Received Stripe invoice: {stripe_invoice_id}")
+        print(f"Customer email from Stripe: {email}")
 
-    if not email and 'customer' in invoice:
-        customer_id = invoice['customer']
-        customer_data = stripe.Customer.retrieve(customer_id)
-        email = customer_data.get('email')
-        print(f"Retrieved email from customer ID: {email}")
+        if not email and 'customer' in invoice:
+            customer_id = invoice['customer']
+            customer_data = stripe.Customer.retrieve(customer_id)
+            email = customer_data.get('email')
+            print(f"Retrieved email from customer ID: {email}")
 
-    if email:
-        erp_customer = get_or_create_erp_customer(email)
-        print(f"ERPNext customer created or found: {erp_customer}")
-        create_erp_invoice(erp_customer, amount_paid, stripe_invoice_id)
-    else:
-        print("[invoice.paid] No email found — skipping ERPNext sync.")
-
-elif event_type == 'customer.created':
-    customer = event['data']['object']
-    email = customer.get('email')
-    print(f"[customer.created] Received customer email: {email}")
-    if email:
-        get_or_create_erp_customer(email)
+        if email:
+            erp_customer = get_or_create_erp_customer(email)
+            print(f"ERPNext customer created or found: {erp_customer}")
+            create_erp_invoice(erp_customer, amount_paid, stripe_invoice_id)
+        else:
+            print("[invoice.paid] No email found — skipping ERPNext sync.")
 
     elif event_type == 'customer.created':
         customer = event['data']['object']
         email = customer.get('email')
+        print(f"[customer.created] Received customer email: {email}")
         if email:
             get_or_create_erp_customer(email)
 
     elif event_type == 'customer.subscription.created':
         subscription = event['data']['object']
         stripe_sub_id = subscription['id']
-        email = subscription['customer_email'] if 'customer_email' in subscription else None
         status = subscription.get('status', 'active')
+        email = None
 
-        if not email and 'customer' in subscription:
+        if 'customer_email' in subscription:
+            email = subscription['customer_email']
+        elif 'customer' in subscription:
             customer_data = stripe.Customer.retrieve(subscription['customer'])
             email = customer_data.get('email')
+
+        print(f"[subscription.created] Email: {email}, Status: {status}")
 
         if email:
             erp_customer = get_or_create_erp_customer(email)
@@ -161,20 +159,17 @@ elif event_type == 'customer.created':
     elif event_type == 'customer.subscription.deleted':
         subscription = event['data']['object']
         stripe_sub_id = subscription['id']
+        print(f"[subscription.deleted] Stripe subscription ID: {stripe_sub_id}")
         cancel_erp_subscription(stripe_sub_id)
 
     elif event_type == 'invoice.payment_failed':
         invoice = event['data']['object']
         email = invoice.get('customer_email')
         stripe_invoice_id = invoice['id']
-        print(f"Payment failed for customer {email}, invoice {stripe_invoice_id}")
+        print(f"[invoice.payment_failed] Payment failed for customer {email}, invoice {stripe_invoice_id}")
 
     return jsonify({"status": "received"}), 200
-
-import os
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
-
-
