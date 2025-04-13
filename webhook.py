@@ -22,7 +22,7 @@ erp_headers = {
 
 def get_or_create_erp_customer(email):
     res = requests.get(
-        f"{ERP_BASE_URL}/api/resource/Customer?filters=[[\"Customer\",\"email_id\",\"=\",\"{email}\"]]",
+        f"{ERP_BASE_URL}/api/resource/Customer?filters=[[\"Customer\",\"email_id\",\"like\",\"{email}%\"]]",
         headers=erp_headers
     )
     try:
