@@ -23,10 +23,15 @@ def get_or_create_erp_customer(email):
         f"{ERP_BASE_URL}/api/resource/Customer?filters=[[\"Customer\",\"email_id\",\"=\",\"{email}\"]]",
         headers=erp_headers
     )
-    data = res.json().get("data", [])
-    if data:
-        return data[0]["name"]
+    try:
+        data = res.json().get("data", [])
+        if data:
+            return data[0]["name"]
+    except Exception as e:
+        print("Error during ERPNext customer lookup:", e)
+        print("Response:", res.text)
 
+    # Create new customer if not found
     payload = {
         "customer_name": email,
         "customer_type": "Individual",
@@ -37,7 +42,12 @@ def get_or_create_erp_customer(email):
         headers=erp_headers,
         json=payload
     )
-    return res.json()["data"]["name"]
+    try:
+        return res.json()["data"]["name"]
+    except Exception as e:
+        print("Error during ERPNext customer creation:", e)
+        print("Response:", res.text)
+        return None
 
 def create_erp_invoice(customer_name, amount, stripe_invoice_id):
     payload = {
