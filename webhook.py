@@ -3,6 +3,7 @@ import stripe
 import requests
 import os
 import sys
+from datetime import datetime, timedelta
 
 # === CONFIGURATION ===
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
@@ -59,6 +60,7 @@ def create_erp_invoice(customer_name, amount, stripe_invoice_id):
             "rate": amount
         }],
         "is_paid": 1,
+        "due_date": (datetime.utcnow() + timedelta(days=7)).strftime('%Y-%m-%d'),
         "remarks": f"Stripe Invoice ID: {stripe_invoice_id}"
     }
     return requests.post(
@@ -71,7 +73,8 @@ def create_erp_subscription(customer_name, stripe_sub_id, status):
     payload = {
         "customer": customer_name,
         "subscription_status": status,
-        "stripe_subscription_id": stripe_sub_id
+        "stripe_subscription_id": stripe_sub_id,
+        "subscription_plan": "Basic Plan"  # must match existing plan in ERPNext
     }
     return requests.post(
         f"{ERP_BASE_URL}/api/resource/Subscription",
