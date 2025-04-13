@@ -131,6 +131,13 @@ if event_type == 'invoice.paid':
     else:
         print("[invoice.paid] No email found — skipping ERPNext sync.")
 
+elif event_type == 'customer.created':
+    customer = event['data']['object']
+    email = customer.get('email')
+    print(f"[customer.created] Received customer email: {email}")
+    if email:
+        get_or_create_erp_customer(email)
+
     elif event_type == 'customer.created':
         customer = event['data']['object']
         email = customer.get('email')
