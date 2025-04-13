@@ -110,14 +110,25 @@ def stripe_webhook():
     event_type = event['type']
 
     if event_type == 'invoice.paid':
-        invoice = event['data']['object']
-        email = invoice.get('customer_email')
-        amount_paid = invoice['amount_paid'] / 100
-        stripe_invoice_id = invoice['id']
+    invoice = event['data']['object']
+    email = invoice.get('customer_email')
+    stripe_invoice_id = invoice['id']
+    amount_paid = invoice['amount_paid'] / 100
 
-        if email:
-            erp_customer = get_or_create_erp_customer(email)
-            create_erp_invoice(erp_customer, amount_paid, stripe_invoice_id)
+    print(f"[invoice.paid] Received Stripe invoice: {stripe_invoice_id}")
+    print(f"Customer email from Stripe: {email}")
+
+    if not email and 'customer' in invoice:
+        customer_data = stripe.Customer.retrieve(invoice['customer'])
+        email = customer_data.get('email')
+        print(f"Retrieved email from customer ID: {email}")
+
+    if email:
+        erp_customer = get_or_create_erp_customer(email)
+        print(f"ERPNext customer created or found: {erp_customer}")
+        create_erp_invoice(erp_customer, amount_paid, stripe_invoice_id)
+    else:
+        print("[invoice.paid] No email found — skipping ERPNext sync.")
 
     elif event_type == 'customer.created':
         customer = event['data']['object']
