@@ -58,7 +58,7 @@ def create_erp_invoice(customer_name, amount, stripe_invoice_id):
             "item_name": "Stripe Subscription",
             "qty": 1,
             "rate": amount,
-            "income_account": "4110-Sales-SM"
+            "income_account": "4110 - Sales - SM"
         }],
         "is_paid": 1,
         "due_date": (datetime.utcnow() + timedelta(days=7)).strftime('%Y-%m-%d'),
@@ -75,7 +75,7 @@ def create_erp_subscription(customer_name, stripe_sub_id, status):
         "customer": customer_name,
         "subscription_status": status,
         "stripe_subscription_id": stripe_sub_id,
-        "subscription_plan": "ACC-SUB-2025-00002"
+        "subscription_plan": "Basic Test Subscription"
     }
     return requests.post(
         f"{ERP_BASE_URL}/api/resource/Subscription",
